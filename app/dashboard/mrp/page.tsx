@@ -13,6 +13,7 @@ interface MrpRow {
   net_requirement: string;
   lead_time_weeks: string | null;
   vendor_name: string | null;
+  material_type: string;
 }
 
 interface RunHistory {
@@ -41,11 +42,20 @@ interface DiffRow {
   vendor_name: string | null;
 }
 
+const TABS = [
+  { key: 'PRODUCT', label: 'Product', color: 'text-gray-700' },
+  { key: 'DEVICE', label: 'Device', color: 'text-blue-700' },
+  { key: 'HARNESS', label: 'Harness', color: 'text-purple-700' },
+  { key: 'PCBA', label: 'PCBA', color: 'text-orange-700' },
+  { key: 'RAW_MATERIAL', label: 'Raw Material', color: 'text-teal-700' },
+];
+
 export default function MrpDashboard() {
   const [projectionVersion, setProjectionVersion] = useState('0');
   const [projectionMonth, setProjectionMonth] = useState('May 2026');
   const [revision, setRevision] = useState('01');
   const [results, setResults] = useState<MrpRow[]>([]);
+  const [activeTab, setActiveTab] = useState('PRODUCT');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastRunId, setLastRunId] = useState<number | null>(null);
@@ -84,6 +94,7 @@ export default function MrpDashboard() {
       if (!res.ok) { setError(data.error || 'Failed to run MRP'); return; }
       setResults(data.data || []);
       setLastRunId(data.runId);
+      setActiveTab('PRODUCT');
       fetchHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -166,6 +177,43 @@ export default function MrpDashboard() {
     return <span className="text-gray-400">—</span>;
   };
 
+  const tabResults = results.filter(r => r.material_type === activeTab);
+  const tabCount = (key: string) => results.filter(r => r.material_type === key).length;
+
+  const ResultsTable = ({ rows }: { rows: MrpRow[] }) => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50 border-b border-gray-200">
+          <tr>
+            {['Material Code', 'Description', 'UOM', 'Type', 'Level', 'Gross', 'Stock', 'Net', 'Lead Time (wks)', 'Vendor'].map((h) => (
+              <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.length === 0 ? (
+            <tr><td colSpan={10} className="px-3 py-8 text-center text-gray-400 text-sm">No items in this category</td></tr>
+          ) : rows.map((row, idx) => (
+            <tr key={idx} className={row.item_type === 'MAKE' ? 'bg-yellow-50' : 'hover:bg-gray-50'}>
+              <td className="px-3 py-2 font-mono text-xs">{row.material_code}</td>
+              <td className="px-3 py-2 text-gray-700">{row.material_description}</td>
+              <td className="px-3 py-2 text-gray-500">{row.uom}</td>
+              <td className="px-3 py-2">
+                <span className={row.item_type === 'MAKE' ? 'text-orange-700 font-semibold' : 'text-blue-700'}>{row.item_type}</span>
+              </td>
+              <td className="px-3 py-2 text-right">{row.level_in_bom}</td>
+              <td className="px-3 py-2 text-right">{row.gross_requirement}</td>
+              <td className="px-3 py-2 text-right">{row.current_stock}</td>
+              <td className="px-3 py-2 text-right font-semibold">{row.net_requirement}</td>
+              <td className="px-3 py-2 text-right">{row.lead_time_weeks ?? ''}</td>
+              <td className="px-3 py-2 text-xs text-gray-500">{row.vendor_name ?? ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="p-8">
       <div className="mb-6">
@@ -203,9 +251,7 @@ export default function MrpDashboard() {
           </div>
         </div>
         {error && <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-lg text-sm">{error}</div>}
-        {lastRunId && (
-          <p className="mt-3 text-xs text-green-600">✓ Run saved (ID: {lastRunId}). Upload stock allocation below.</p>
-        )}
+        {lastRunId && <p className="mt-3 text-xs text-green-600">✓ Run saved (ID: {lastRunId}). Upload stock allocation below.</p>}
       </div>
 
       {/* Stock Allocation Upload */}
@@ -224,14 +270,51 @@ export default function MrpDashboard() {
               {allocUploading ? 'Uploading...' : 'Upload Allocation'}
             </button>
           </div>
-          {allocResult && (
-            <p className={`mt-2 text-sm ${allocResult.startsWith('✓') ? 'text-green-600' : 'text-red-600'}`}>{allocResult}</p>
-          )}
+          {allocResult && <p className={`mt-2 text-sm ${allocResult.startsWith('✓') ? 'text-green-600' : 'text-red-600'}`}>{allocResult}</p>}
+        </div>
+      )}
+
+      {/* MRP Results with Tabs */}
+      {results.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 mb-6">
+          {/* Tab header */}
+          <div className="flex items-center justify-between px-6 pt-4 pb-0 border-b border-gray-200">
+            <div className="flex gap-1">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors relative ${
+                    activeTab === tab.key
+                      ? 'bg-white border border-b-white border-gray-200 -mb-px text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                  {tabCount(tab.key) > 0 && (
+                    <span className="ml-1.5 text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
+                      {tabCount(tab.key)}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => downloadCsv(tabResults, `mrp_${activeTab.toLowerCase()}_${projectionVersion}_rev${revision}.csv`)}
+              disabled={tabResults.length === 0}
+              className="mb-2 bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 text-xs font-medium disabled:opacity-40 transition-colors">
+              ↓ Download CSV
+            </button>
+          </div>
+          {/* Tab content */}
+          <div className="p-0">
+            <ResultsTable rows={tabResults} />
+          </div>
         </div>
       )}
 
       {/* Compare Revisions */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-base font-semibold text-gray-700 mb-4">Compare Revisions</h3>
         {history.length < 2 ? (
           <p className="text-sm text-gray-400">Run MRP at least twice with different revisions to compare.</p>
@@ -274,7 +357,6 @@ export default function MrpDashboard() {
           </div>
         )}
         {diffError && <p className="mt-3 text-sm text-red-600">{diffError}</p>}
-
         {showDiff && diffRows.length > 0 && (
           <div className="mt-6">
             <div className="flex gap-3 mb-4 flex-wrap">
@@ -320,49 +402,6 @@ export default function MrpDashboard() {
           </div>
         )}
       </div>
-
-      {/* MRP Results */}
-      {results.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-semibold text-gray-700">Results ({results.length} items)</h3>
-            <button
-              onClick={() => downloadCsv(results, `mrp_${projectionVersion}_rev${revision}_${projectionMonth.replace(/ /g, '_')}.csv`)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors">
-              ↓ Download CSV
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  {['Material Code', 'Description', 'UOM', 'Type', 'Level', 'Gross', 'Stock', 'Net', 'Lead Time (wks)', 'Vendor'].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {results.map((row, idx) => (
-                  <tr key={idx} className={row.item_type === 'MAKE' ? 'bg-yellow-50' : 'hover:bg-gray-50'}>
-                    <td className="px-3 py-2 font-mono text-xs">{row.material_code}</td>
-                    <td className="px-3 py-2 text-gray-700">{row.material_description}</td>
-                    <td className="px-3 py-2 text-gray-500">{row.uom}</td>
-                    <td className="px-3 py-2">
-                      <span className={row.item_type === 'MAKE' ? 'text-orange-700 font-semibold' : 'text-blue-700'}>{row.item_type}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right">{row.level_in_bom}</td>
-                    <td className="px-3 py-2 text-right">{row.gross_requirement}</td>
-                    <td className="px-3 py-2 text-right">{row.current_stock}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{row.net_requirement}</td>
-                    <td className="px-3 py-2 text-right">{row.lead_time_weeks ?? ''}</td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{row.vendor_name ?? ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
