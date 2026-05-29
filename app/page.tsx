@@ -50,7 +50,7 @@ export default function Home() {
       headers.join(','),
       ...results.map((row) =>
         headers.map((h) => {
-          const val = (row as Record<string, unknown>)[h];
+          const val = (row as unknown as Record<string, unknown>)[h];
           if (val === null || val === undefined) return '';
           const str = String(val);
           return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;

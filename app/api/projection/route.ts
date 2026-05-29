@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         headers.join(','),
         ...rows.map((row) =>
           headers.map((h) => {
-            const val = (row as Record<string, unknown>)[h];
+            const val = (row as unknown as Record<string, unknown>)[h];
             if (val === null || val === undefined) return '';
             const str = String(val);
             return str.includes(',') || str.includes('"')
