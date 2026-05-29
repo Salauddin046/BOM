@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 
 interface MrpRow {
   material_code: string;
@@ -27,14 +26,21 @@ export default function Home() {
     setLoading(true);
     setError('');
     setResults([]);
+
     try {
       const res = await fetch('/api/mrp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectionVersion, projectionMonth }),
       });
+
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Failed to run MRP'); return; }
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to run MRP');
+        return;
+      }
+
       setResults(data.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -45,18 +51,24 @@ export default function Home() {
 
   const downloadCsv = () => {
     if (results.length === 0) return;
+
     const headers = Object.keys(results[0]);
     const csvRows = [
       headers.join(','),
       ...results.map((row) =>
-        headers.map((h) => {
-          const val = (row as Record<string, unknown>)[h];
-          if (val === null || val === undefined) return '';
-          const str = String(val);
-          return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-        }).join(',')
+        headers
+          .map((h) => {
+            const val = (row as any)[h];
+            if (val === null || val === undefined) return '';
+            const str = String(val);
+            return str.includes(',') || str.includes('"')
+              ? `"${str.replace(/"/g, '""')}"`
+              : str;
+          })
+          .join(',')
       ),
     ];
+
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -69,43 +81,15 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header with dashboard link */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">MRP Tool</h1>
-          <Link
-            href="/dashboard/projection"
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors"
-          >
-            → View Dashboards
-          </Link>
-        </div>
+        <h1 className="text-3xl font-bold mb-6">MRP Tool</h1>
 
-        {/* Quick nav to dashboards */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
-          {[
-            { href: '/dashboard/projection', label: 'Projection', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-            { href: '/dashboard/product', label: 'Product', color: 'bg-gray-50 text-gray-700 border-gray-200' },
-            { href: '/dashboard/device', label: 'Device', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-            { href: '/dashboard/harness', label: 'Harness', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-            { href: '/dashboard/pcba', label: 'PCBA', color: 'bg-orange-50 text-orange-700 border-orange-200' },
-            { href: '/dashboard/raw-material', label: 'Raw Material', color: 'bg-teal-50 text-teal-700 border-teal-200' },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`border rounded-lg px-3 py-2 text-xs font-semibold text-center hover:opacity-80 transition-opacity ${item.color}`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-
-        {/* MRP Run Panel */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">Run MRP</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Projection Version</label>
+              <label className="block text-sm font-medium mb-1">
+                Projection Version
+              </label>
               <input
                 type="text"
                 value={projectionVersion}
@@ -114,7 +98,9 @@ export default function Home() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Projection Month</label>
+              <label className="block text-sm font-medium mb-1">
+                Projection Month
+              </label>
               <input
                 type="text"
                 value={projectionMonth}
@@ -134,14 +120,18 @@ export default function Home() {
             </div>
           </div>
           {error && (
-            <div className="mt-4 p-3 bg-red-100 text-red-800 rounded">{error}</div>
+            <div className="mt-4 p-3 bg-red-100 text-red-800 rounded">
+              {error}
+            </div>
           )}
         </div>
 
         {results.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Results ({results.length} items)</h2>
+              <h2 className="text-xl font-semibold">
+                Results ({results.length} items)
+              </h2>
               <button
                 onClick={downloadCsv}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
@@ -167,21 +157,46 @@ export default function Home() {
                 </thead>
                 <tbody>
                   {results.map((row, idx) => (
-                    <tr key={idx} className={row.item_type === 'MAKE' ? 'bg-yellow-50' : ''}>
-                      <td className="px-3 py-2 font-mono text-xs">{row.material_code}</td>
+                    <tr
+                      key={idx}
+                      className={
+                        row.item_type === 'MAKE' ? 'bg-yellow-50' : ''
+                      }
+                    >
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {row.material_code}
+                      </td>
                       <td className="px-3 py-2">{row.material_description}</td>
                       <td className="px-3 py-2">{row.uom}</td>
                       <td className="px-3 py-2">
-                        <span className={row.item_type === 'MAKE' ? 'text-orange-700 font-semibold' : 'text-blue-700'}>
+                        <span
+                          className={
+                            row.item_type === 'MAKE'
+                              ? 'text-orange-700 font-semibold'
+                              : 'text-blue-700'
+                          }
+                        >
                           {row.item_type}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right">{row.level_in_bom}</td>
-                      <td className="px-3 py-2 text-right">{row.gross_requirement}</td>
-                      <td className="px-3 py-2 text-right">{row.current_stock}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{row.net_requirement}</td>
-                      <td className="px-3 py-2 text-right">{row.lead_time_weeks ?? ''}</td>
-                      <td className="px-3 py-2 text-xs">{row.vendor_name ?? ''}</td>
+                      <td className="px-3 py-2 text-right">
+                        {row.level_in_bom}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {row.gross_requirement}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {row.current_stock}
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold">
+                        {row.net_requirement}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {row.lead_time_weeks ?? ''}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {row.vendor_name ?? ''}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
