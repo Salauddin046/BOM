@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
+  { href: '/dashboard/mrp', label: 'Run MRP', icon: '⚙️' },
   { href: '/dashboard/projection', label: 'Projection', icon: '📊' },
   { href: '/dashboard/product', label: 'Product', icon: '📦' },
   { href: '/dashboard/device', label: 'Device', icon: '🔧' },
